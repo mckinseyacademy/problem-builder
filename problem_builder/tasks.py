@@ -81,6 +81,10 @@ def export_data(course_id, source_block_id_str, block_types, user_ids, match_str
                 results = _extract_data(course_key_str, block, user_id, match_string)
                 rows += results
     output_buffer = None
+    # Report may have very large number of rows which may cause memory issue
+    # when writing them into csv file in single go.
+    # To overcome this memory issue divide rows in chunks defined in 'REPORT_CHUNK_SIZE'
+    # and then write data to CSV file.
     rows_chunk = [rows[i:i + REPORT_CHUNK_SIZE] for i in range(0, len(rows), REPORT_CHUNK_SIZE)]
     # Generate the CSV:
     filename = u"pb-data-export-{}.csv".format(time.strftime("%Y-%m-%d-%H%M%S", time.gmtime(start_timestamp)))
