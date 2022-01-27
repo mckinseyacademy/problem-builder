@@ -20,6 +20,7 @@ from .mcq import MCQBlock, RatingBlock
 from .mrq import MRQBlock
 from .questionnaire import QuestionnaireAbstractBlock
 from .sub_api import sub_api
+from problem_builder.settings import REPORT_CHUNK_SIZE
 
 logger = get_task_logger(__name__)
 
@@ -79,11 +80,19 @@ def export_data(course_id, source_block_id_str, block_types, user_ids, match_str
             for user_id in user_ids:
                 results = _extract_data(course_key_str, block, user_id, match_string)
                 rows += results
-
+    output_buffer = None
+    # Report may have very large number of rows which may cause memory issue
+    # when writing them into csv file in single go.
+    # To overcome this memory issue divide rows in chunks defined in 'REPORT_CHUNK_SIZE'
+    # and then write data to CSV file.
+    rows_chunk = [rows[i:i + REPORT_CHUNK_SIZE] for i in range(0, len(rows), REPORT_CHUNK_SIZE)]
     # Generate the CSV:
     filename = u"pb-data-export-{}.csv".format(time.strftime("%Y-%m-%d-%H%M%S", time.gmtime(start_timestamp)))
     report_store = ReportStore.from_config(config_name='GRADES_DOWNLOAD')
-    report_store.store_rows(course_key, filename, rows, encode_for_utf8=True, batched=True)
+    for chunk in rows_chunk:
+        output_buffer = report_store.add_rows(chunk, output_buffer)
+    output_buffer.seek(0)
+    report_store.store(course_key, filename, output_buffer, True)
 
     generation_time_s = time.time() - start_timestamp
     logger.debug("Done data export - took {} seconds".format(generation_time_s))
