@@ -97,5 +97,3 @@ PB_LANGUAGE_JS_DIRECTORY_MAP = {
     'zh-cn': 'zh_CN',
     'ko-kr': 'ko_KR'
 }
-
-REPORT_CHUNK_SIZE = 100
