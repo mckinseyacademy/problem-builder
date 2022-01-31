@@ -107,7 +107,7 @@ class InstructorToolBlock(XBlock, I18NService, TranslationContentMixin, XBlockWi
         log.info(u'Active export task id "{}"'.format(self.active_export_task_id))
         if self.active_export_task_id:
             async_result = export_data_task.AsyncResult(self.active_export_task_id)
-            log.info(u'Active export task async_result "{}"'.format(vars(async_result)))
+            log.info(u'Active export task async_result ready state"{}"'.format(async_result.ready()))
             if async_result.ready():
                 self._save_result(async_result)
 
