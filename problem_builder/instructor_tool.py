@@ -23,6 +23,7 @@ Instructor Tool: An XBlock for instructors to export student answers from a cour
 All processing is done offline.
 """
 import json
+import logging
 
 import six
 from django.core.paginator import Paginator
@@ -34,6 +35,7 @@ from xblockutils.resources import ResourceLoader
 from .mixins import TranslationContentMixin, XBlockWithTranslationServiceMixin
 from .utils import I18NService
 
+log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
 
 PAGE_SIZE = 15
@@ -102,14 +104,17 @@ class InstructorToolBlock(XBlock, I18NService, TranslationContentMixin, XBlockWi
         If we're waiting for an export, see if it has finished, and if so, get the result.
         """
         from .tasks import export_data as export_data_task  # Import here since this is edX LMS specific
+        log.info(u'Active export task id "{}"'.format(self.active_export_task_id))
         if self.active_export_task_id:
             async_result = export_data_task.AsyncResult(self.active_export_task_id)
+            log.info(u'Active export task async_result "{}"'.format(vars(async_result)))
             if async_result.ready():
                 self._save_result(async_result)
 
     def _save_result(self, task_result):
         """ Given an AsyncResult or EagerResult, save it. """
         self.active_export_task_id = ''
+        log.info(u'Active export task_result status "{}"'.format(task_result.successful()))
         if task_result.successful():
             if isinstance(task_result.result, dict) and not task_result.result.get('error'):
                 self.display_data = task_result.result['display_data']
@@ -121,6 +126,7 @@ class InstructorToolBlock(XBlock, I18NService, TranslationContentMixin, XBlockWi
         else:
             self.last_export_result = {'error': six.text_type(task_result.result)}
             self.display_data = None
+        log.info(u'Active export task _save_result {} - {}'.format(self.display_data, self.last_export_result))
 
     @XBlock.json_handler
     def get_result_page(self, data, suffix=''):
@@ -265,6 +271,7 @@ class InstructorToolBlock(XBlock, I18NService, TranslationContentMixin, XBlockWi
     @XBlock.json_handler
     def cancel_export(self, request, suffix=''):
         from .tasks import export_data as export_data_task  # Import here since this is edX LMS specific
+        log.info(u'Active export task cancel_export id "{}"'.format(self.active_export_task_id))
         if self.active_export_task_id:
             async_result = export_data_task.AsyncResult(self.active_export_task_id)
             async_result.revoke()
