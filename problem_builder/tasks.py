@@ -2,13 +2,14 @@
 Celery task for CSV student answer export.
 """
 import time
+import logging
 
 import six
 from django.contrib.auth.models import User
 from django.db.models import F
 
 from celery.task import task
-from celery.utils.log import get_task_logger
+# from celery.utils.log import get_task_logger
 from lms.djangoapps.instructor_task.models import ReportStore
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -22,7 +23,8 @@ from .questionnaire import QuestionnaireAbstractBlock
 from .sub_api import sub_api
 from problem_builder.settings import REPORT_CHUNK_SIZE
 
-logger = get_task_logger(__name__)
+# logger = get_task_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 @task()
@@ -32,7 +34,7 @@ def export_data(course_id, source_block_id_str, block_types, user_ids, match_str
     """
     start_timestamp = time.time()
 
-    logger.debug("Beginning data export")
+    log.info("Beginning data export")
     try:
         course_key = CourseKey.from_string(course_id)
         usage_key = UsageKey.from_string(source_block_id_str)
@@ -95,7 +97,7 @@ def export_data(course_id, source_block_id_str, block_types, user_ids, match_str
     report_store.store(course_key, filename, output_buffer, True)
 
     generation_time_s = time.time() - start_timestamp
-    logger.debug("Done data export - took {} seconds".format(generation_time_s))
+    log.info("Done data export - took {} seconds".format(generation_time_s))
 
     return {
         "error": None,
