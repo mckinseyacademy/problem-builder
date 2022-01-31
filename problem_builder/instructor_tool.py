@@ -126,7 +126,8 @@ class InstructorToolBlock(XBlock, I18NService, TranslationContentMixin, XBlockWi
         else:
             self.last_export_result = {'error': six.text_type(task_result.result)}
             self.display_data = None
-        log.info(u'Active export task _save_result {} - {}'.format(len(self.display_data), self.last_export_result))
+        log.info(u'Active export task _save_result {} - {}'.format(
+            len(self.display_data) if self.display_data else self.display_data, self.last_export_result))
 
     @XBlock.json_handler
     def get_result_page(self, data, suffix=''):
