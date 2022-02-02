@@ -85,6 +85,7 @@ def export_data(course_id, source_block_id_str, block_types, user_ids, match_str
     # Generate the CSV:
     filename = u"pb-data-export-{}.csv".format(time.strftime("%Y-%m-%d-%H%M%S", time.gmtime(start_timestamp)))
     report_store = ReportStore.from_config(config_name='GRADES_DOWNLOAD')
+    log.info("Number of rows to be added: {}".format(len(rows)))
     report_store.store_rows(course_key, filename, rows)
 
     generation_time_s = time.time() - start_timestamp
@@ -104,50 +105,56 @@ def _extract_data(course_key_str, block, user_id, match_string):
     Extract results for `block`.
     """
     rows = []
+    try:
+        log.info("Start extracting results of Block: {}".format(block.name))
+        # Extract info for "Section", "Subsection", and "Unit" columns
+        section_name, subsection_name, unit_name = _get_context(block)
 
-    # Extract info for "Section", "Subsection", and "Unit" columns
-    section_name, subsection_name, unit_name = _get_context(block)
+        # Extract info for "Type" column
+        block_type = _get_type(block)
 
-    # Extract info for "Type" column
-    block_type = _get_type(block)
+        # Extract info for "Question" column
+        block_question = _get_question(block)
+        log.info("Section, unit, block type,  block question information extracted. ")
 
-    # Extract info for "Question" column
-    block_question = _get_question(block)
+        # Extract info for "Answer" and "Username" columns
+        # - Get all of the most recent student submissions for this block:
+        submissions = tuple(_get_submissions(course_key_str, block, user_id))
+        log.info("Total Submissions {}".format(len(submissions)))
 
-    # Extract info for "Answer" and "Username" columns
-    # - Get all of the most recent student submissions for this block:
-    submissions = tuple(_get_submissions(course_key_str, block, user_id))
+        # If the student ID key doesn't exist, we're dealing with a single student and know the ID already.
+        student_ids = [submission.get('student_id', user_id) for submission in submissions]
+        users = get_users_by_anonymous_ids(student_ids)
+        log.info("Total users did submissions {}".format(len(submissions)))
 
-    # If the student ID key doesn't exist, we're dealing with a single student and know the ID already.
-    student_ids = [submission.get('student_id', user_id) for submission in submissions]
-    users = get_users_by_anonymous_ids(student_ids)
+        # - For each submission, look up student's username, email and answer:
+        answer_cache = {}
+        for submission in submissions:
+            student_id = submission.get('student_id', user_id)
+            username, _user_id, user_email = users.get(
+                student_id,
+                (student_id, 'N/A', 'N/A')
+            )
+            answer = _get_answer(block, submission, answer_cache)
 
-    # - For each submission, look up student's username, email and answer:
-    answer_cache = {}
-    for submission in submissions:
-        student_id = submission.get('student_id', user_id)
-        username, _user_id, user_email = users.get(
-            student_id,
-            (student_id, 'N/A', 'N/A')
-        )
-        answer = _get_answer(block, submission, answer_cache)
+            # Short-circuit if answer does not match search criteria
+            if not match_string.lower() in answer.lower():
+                continue
 
-        # Short-circuit if answer does not match search criteria
-        if not match_string.lower() in answer.lower():
-            continue
-
-        rows.append([
-            section_name,
-            subsection_name,
-            unit_name,
-            block_type,
-            block_question,
-            answer,
-            username,
-            _user_id,
-            user_email
-        ])
-
+            rows.append([
+                section_name,
+                subsection_name,
+                unit_name,
+                block_type,
+                block_question,
+                answer,
+                username,
+                _user_id,
+                user_email
+            ])
+        log.info("Extraction results of Block completed with total rows = {}".format(len(rows)))
+    except Exception as e:
+        log.error("Error while extracting blocks: {}".format(e))
     return rows
 
 
