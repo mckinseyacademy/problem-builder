@@ -106,7 +106,7 @@ def _extract_data(course_key_str, block, user_id, match_string):
     """
     rows = []
     try:
-        log.info("Start extracting results of Block: {}".format(block.name))
+        log.info("Start extracting results of Block: {}".format(block.name if block.name else ''))
         # Extract info for "Section", "Subsection", and "Unit" columns
         section_name, subsection_name, unit_name = _get_context(block)
 
@@ -120,12 +120,12 @@ def _extract_data(course_key_str, block, user_id, match_string):
         # Extract info for "Answer" and "Username" columns
         # - Get all of the most recent student submissions for this block:
         submissions = tuple(_get_submissions(course_key_str, block, user_id))
-        log.info("Total Submissions {}".format(len(submissions)))
+        log.info("Total Submissions {}".format(len(submissions) if submissions else 0))
 
         # If the student ID key doesn't exist, we're dealing with a single student and know the ID already.
         student_ids = [submission.get('student_id', user_id) for submission in submissions]
         users = get_users_by_anonymous_ids(student_ids)
-        log.info("Total users did submissions {}".format(len(submissions)))
+        log.info("Total users did submissions {}".format(len(users) if users else 0))
 
         # - For each submission, look up student's username, email and answer:
         answer_cache = {}
